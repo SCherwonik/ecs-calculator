@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 AcqDemo Expected Contribution Range Calculator (NH)</title>
+<style>
+  :root{
+    --upper:#2e7d32;      /* dark green */
+    --spl:#8bc34a;        /* light green */
+    --lower:#e6007e;      /* magenta */
+    --ink:#1a1a1a;
+    --muted:#5a6470;
+    --line:#d9dee5;
+    --bg:#ffffff;
+    --panel:#f6f8fa;
+    --band:#9aa7b4;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);background:#eef1f4;padding:24px;line-height:1.45;
+  }
+  .wrap{max-width:1680px;margin:0 auto}
+  header{margin-bottom:18px;display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 16px}
+  .disc{font-size:11px;color:var(--muted)}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px}
+  .grid{display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:start}
+  @media(max-width:880px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:18px}
+  /* graph stays pinned at full viewport height while the inputs scroll */
+  .chartcard{padding:10px 6px 6px;display:flex;flex-direction:column;position:sticky;top:16px;height:calc(100vh - 125px);min-height:460px}
+  @media(max-width:880px){.chartcard{position:static;height:auto;min-height:0}
+    #chart{flex:none;aspect-ratio:900/580;height:auto}}   /* Safari collapses flex SVGs to 0 height */
+  svg{width:100%;height:auto;display:block}
+  #chart{flex:1 1 auto;min-height:0;height:auto}
+  label{display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin:14px 0 5px}
+  input,select{
+    width:100%;padding:10px 12px;font-size:15px;border:1px solid var(--line);
+    border-radius:8px;background:#fff;color:var(--ink);
+  }
+  input:focus,select:focus{outline:2px solid #9bc4ff;border-color:#6aa6ff}
+  .hint{font-size:11px;color:var(--muted);margin-top:4px}
+  .out{margin-top:18px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .out .box{border:1px solid var(--line);border-radius:10px;padding:12px 10px;text-align:center;background:var(--panel)}
+  .out .box .lab{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+  .out .box .val{font-size:18px;font-weight:700;margin-top:3px}
+  .box.upper .lab{color:var(--upper)}
+  .box.spl   .lab{color:#5a8a1f}
+  .box.lower .lab{color:var(--lower)}
+  .verdict{margin-top:16px;padding:13px 14px;border-radius:10px;font-size:14px;border:1px solid}
+  .verdict b{font-weight:700}
+  .v-under{background:#fff0f6;border-color:#f7b9da;color:#9c1361}
+  .v-in{background:#f0f8ec;border-color:#bfe2ac;color:#356019}
+  .v-over{background:#fff7e8;border-color:#f3d79a;color:#8a5a00}
+  .v-none{background:var(--panel);border-color:var(--line);color:var(--muted)}
+  .legend{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;font-size:12px;color:var(--muted);padding:4px 0 8px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .swatch{width:18px;height:3px;border-radius:2px;display:inline-block}
+  footer{margin-top:18px;font-size:11px;color:var(--muted)}
+  .locwrap{margin-top:10px}
+  .loccard{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#f1f6ff}
+  .loccard .lt{font-size:12px;font-weight:700;color:#1f5fbf;margin-bottom:8px}
+  .locrow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center}
+  .locrow .lab{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  .locrow .val{font-size:16px;font-weight:700;margin-top:2px}
+  .loccard .ln{font-size:11px;color:var(--muted);margin-top:8px}
+  .ln{font-size:11px;color:var(--muted);margin-top:8px}
+  label.bluelab{color:#1f5fbf}
+  .ecsrow{display:flex;gap:6px;align-items:stretch}
+  .ecsrow input{flex:1 1 auto;width:auto;-moz-appearance:textfield;appearance:textfield}
+  .ecsrow input::-webkit-outer-spin-button,
+  .ecsrow input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .stepper{display:flex;flex-direction:column;width:36px;flex:0 0 36px}
+  .stepper button{flex:1;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:9px;line-height:1;padding:0;color:var(--ink)}
+  .stepper button:first-child{border-radius:8px 8px 0 0;border-bottom:none}
+  .stepper button:last-child{border-radius:0 0 8px 8px}
+  .stepper button:hover{background:var(--panel)}
+  .stepper button:active{background:#e9eef3}
+  .target{margin-top:10px;padding:12px 14px;border-radius:10px;font-size:13px;line-height:1.5;border:1px solid}
+  .t-ahead{background:#f0f8ec;border-color:#bfe2ac;color:#356019}
+  .t-behind{background:#fff0f6;border-color:#f7b9da;color:#9c1361}
+  .t-none{background:var(--panel);border-color:var(--line);color:var(--muted)}
+  .target .big{font-size:16px}
+  .tslider{-webkit-appearance:none;appearance:none;width:100%;height:8px;margin:12px 0 4px;padding:0;border:none;border-radius:4px;background:var(--line);outline:none;cursor:pointer}
+  .tslider::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#1a1a1a;border:2px solid #fff;box-shadow:0 0 0 1px #8a95a1}
+  .tslider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#1a1a1a;border:2px solid #fff;box-shadow:0 0 0 1px #8a95a1}
+  .tslider:focus-visible{outline:2px solid #9bc4ff;outline-offset:3px}
+  .tslider.rails{background:linear-gradient(to right,#f6b3d6,#d9edc6 50%,#a9d6a0)}
+  .salfold{margin-top:14px}
+  .salfold summary{list-style:none;cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;padding:4px 0;display:flex;align-items:center;gap:6px}
+  .salfold summary::-webkit-details-marker{display:none}
+  .salfold summary::before{content:"\25B8";font-size:11px;transition:transform .15s}
+  .salfold[open] summary::before{transform:rotate(90deg)}
+  .salfold summary:hover{color:var(--ink)}
+  .salfold summary:focus-visible{outline:2px solid #9bc4ff;outline-offset:2px;border-radius:4px}
+  .salfold input,.salfold select{margin-top:6px}
+  .threerow{display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:8px;margin-top:4px}
+  .threerow label{margin-top:12px}
+  .threerow input,.threerow select{padding:9px 8px}
+  .tscale{display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}
+  .tworow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .tworow label{margin-top:14px}
+  .erosion{margin-top:12px;padding:12px 14px;border:1px solid #f0c98a;background:#fff7e8;border-radius:10px;font-size:13px;color:#7a4d00;line-height:1.5}
+  .erosion b{color:#5a3a00}
+  .erosion .big{font-size:16px;color:#a35c00}
+  .erosion.base{border-style:dashed;color:#8a7a5a}
+
+  /* ---- compact spacing so the inputs column fits one screen ---- */
+  h1{font-size:20px;margin:0 0 2px}
+  .sub{font-size:12px}
+  .card{padding:14px 16px}
+  label{margin:10px 0 4px}
+  input,select{padding:8px 10px;font-size:14px}
+  .tslider{margin:8px 0 2px}
+  .out{margin-top:12px;gap:8px}
+  .out .box{padding:8px 6px}
+  .out .box .val{font-size:16px;margin-top:1px}
+  .verdict,.erosion,.target{margin-top:8px;padding:9px 12px;font-size:12.5px;line-height:1.45}
+  .erosion .big,.target .big{font-size:14px}
+  .salfold{margin-top:8px}
+  .salfold summary{padding:2px 0}
+  .locwrap{margin-top:8px}
+  .threerow label{margin-top:10px}
+  .threerow input,.threerow select{padding:8px 8px}
+
+  /* ---- fit-to-screen layout: whole page fits the window on desktop, no page scroll ---- */
+  @media (min-width:881px){
+    body{height:100vh;overflow:hidden;padding:14px 18px;display:flex;flex-direction:column}
+    .wrap{flex:1;min-height:0;width:100%;display:flex;flex-direction:column}
+    header{margin-bottom:10px;flex:none}
+    .grid{flex:1;min-height:0;align-items:stretch}
+    .chartcard{position:static;height:auto;min-height:0}
+    .grid > .card:last-child{overflow-y:auto;min-height:0}   /* safety net on very short screens only */
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>2026 Expected Contribution Range Calculator</h1>
+    <span class="disc">Unofficial estimate built from the 2026 ECR tables. Not an OPM or DoD product.</span>
+  </header>
+
+  <div class="grid">
+    <div class="card chartcard">
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--upper)"></i>Upper Rail</span>
+        <span><i class="swatch" style="background:var(--spl)"></i>SPL (Standard Pay Line)</span>
+        <span><i class="swatch" style="background:var(--lower)"></i>Lower Rail</span>
+        <span><i class="swatch" style="background:var(--band);height:9px;opacity:.35;border-radius:2px"></i>NH-IV pay range</span>
+      </div>
+      <svg id="chart" viewBox="0 0 900 580" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Expected Contribution Range chart"><rect x="72" y="20" width="800" height="500" fill="#ffffff" stroke="#c7ced6" stroke-width="1"></rect><line x1="72" y1="520" x2="872" y2="520" stroke="#eef1f4" stroke-width="1"></line><text x="64" y="524" text-anchor="end" font-size="11" fill="#5a6470">$20,000</text><line x1="72" y1="457.5" x2="872" y2="457.5" stroke="#eef1f4" stroke-width="1"></line><text x="64" y="461.5" text-anchor="end" font-size="11" fill="#5a6470">$40,000</text><line x1="72" y1="395" x2="872" y2="395" stroke="#eef1f4" stroke-width="1"></line><text x="64" y="399" text-anchor="end" font-size="11" fill="#5a6470">$60,000</text><line x1="72" y1="332.5" x2="872" y2="332.5" stroke="#eef1f4" stroke-width="1"></line><text x="64" y="336.5" text-anchor="end" font-size="11" fill="#5a6470">$80,000</text><line x1="72" y1="270" x2="872" y2="270" stroke="#eef1f4" stroke-width="1"></line><text x="64" y="274" text-anchor="end" font-size="11" fill="#5a6470">$100,000</text><line x1="72" y1="207.5" x2="872" y2="207.5" stroke="#eef1f4" stroke-width="1"></line><text x="64" y="211.5" text-anchor="end" font-size="11" fill="#5a6470">$120,000</text><line x1="72" y1="145" x2="872" y2="145" stroke="#eef1f4" stroke-width="1"></line><text x="64" y="149" text-anchor="end" font-size="11" fill="#5a6470">$140,000</text><line x1="72" y1="82.5" x2="872" y2="82.5" stroke="#eef1f4" stroke-width="1"></line><text x="64" y="86.5" text-anchor="end" font-size="11" fill="#5a6470">$160,000</text><line x1="72" y1="20" x2="872" y2="20" stroke="#eef1f4" stroke-width="1"></line><text x="64" y="24" text-anchor="end" font-size="11" fill="#5a6470">$180,000</text><line x1="72" y1="20" x2="72" y2="520" stroke="#eef1f4" stroke-width="1"></line><text x="72" y="538" text-anchor="middle" font-size="11" fill="#5a6470">0</text><line x1="152" y1="20" x2="152" y2="520" stroke="#eef1f4" stroke-width="1"></line><text x="152" y="538" text-anchor="middle" font-size="11" fill="#5a6470">10</text><line x1="232" y1="20" x2="232" y2="520" stroke="#eef1f4" stroke-width="1"></line><text x="232" y="538" text-anchor="middle" font-size="11" fill="#5a6470">20</text><line x1="312" y1="20" x2="312" y2="520" stroke="#eef1f4" stroke-width="1"></line><text x="312" y="538" text-anchor="middle" font-size="11" fill="#5a6470">30</text><line x1="392" y1="20" x2="392" y2="520" stroke="#eef1f4" stroke-width="1"></line><text x="392" y="538" text-anchor="middle" font-size="11" fill="#5a6470">40</text><line x1="472" y1="20" x2="472" y2="520" stroke="#eef1f4" stroke-width="1"></line><text x="472" y="538" text-anchor="middle" font-size="11" fill="#5a6470">50</text><line x1="552" y1="20" x2="552" y2="520" stroke="#eef1f4" stroke-width="1"></line><text x="552" y="538" text-anchor="middle" font-size="11" fill="#5a6470">60</text><line x1="632" y1="20" x2="632" y2="520" stroke="#eef1f4" stroke-width="1"></line><text x="632" y="538" text-anchor="middle" font-size="11" fill="#5a6470">70</text><line x1="712" y1="20" x2="712" y2="520" stroke="#eef1f4" stroke-width="1"></line><text x="712" y="538" text-anchor="middle" font-size="11" fill="#5a6470">80</text><line x1="792" y1="20" x2="792" y2="520" stroke="#eef1f4" stroke-width="1"></line><text x="792" y="538" text-anchor="middle" font-size="11" fill="#5a6470">90</text><line x1="872" y1="20" x2="872" y2="520" stroke="#eef1f4" stroke-width="1"></line><text x="872" y="538" text-anchor="middle" font-size="11" fill="#5a6470">100</text><rect x="72" y="69.05937500000002" width="800" height="177.60937499999997" fill="#9aa7b4" fill-opacity="0.16"></rect><line x1="72" y1="69.05937500000002" x2="872" y2="69.05937500000002" stroke="#7c8a99" stroke-width="1" stroke-dasharray="5 4"></line><line x1="72" y1="246.66875" x2="872" y2="246.66875" stroke="#7c8a99" stroke-width="1" stroke-dasharray="5 4"></line><text x="78" y="65.05937500000002" font-size="10" fill="#566270">NH-IV ceiling $164,301</text><text x="78" y="258.66875" font-size="10" fill="#566270">NH-IV floor $107,466</text><polyline points="72.0,506.3 80.0,504.8 88.0,503.2 96.0,501.6 104.0,500.0 112.0,498.3 120.0,496.6 128.0,494.9 136.0,493.2 144.0,491.4 152.0,489.5 160.0,487.7 168.0,485.8 176.0,483.8 184.0,481.9 192.0,479.9 200.0,477.8 208.0,475.7 216.0,473.6 224.0,471.4 232.0,469.1 240.0,466.9 248.0,464.6 256.0,462.2 264.0,459.8 272.0,457.3 280.0,454.8 288.0,452.3 296.0,449.6 304.0,447.0 312.0,444.3 320.0,441.5 328.0,438.7 336.0,435.8 344.0,432.8 352.0,429.8 360.0,426.8 368.0,423.7 376.0,420.5 384.0,417.2 392.0,413.9 400.0,410.5 408.0,407.1 416.0,403.6 424.0,400.0 432.0,396.3 440.0,392.6 448.0,388.8 456.0,384.9 464.0,381.0 472.0,376.9 480.0,372.8 488.0,368.6 496.0,364.3 504.0,359.9 512.0,355.5 520.0,350.9 528.0,346.3 536.0,341.5 544.0,336.7 552.0,331.8 560.0,326.8 568.0,321.6 576.0,316.4 584.0,311.1 592.0,305.6 600.0,300.1 608.0,294.4 616.0,288.7 624.0,282.8 632.0,276.8 640.0,270.6 648.0,264.4 656.0,258.0 664.0,251.5 672.0,244.9 680.0,238.1 688.0,231.2 696.0,224.1 704.0,217.0 712.0,209.6 720.0,202.2 728.0,194.5 736.0,186.8 744.0,178.8 752.0,170.7 760.0,162.5 768.0,154.1 776.0,145.5 784.0,136.7 792.0,127.8 800.0,118.7 808.0,109.4 816.0,99.9 824.0,90.2 832.0,80.4 840.0,70.3 848.0,60.0 856.0,49.6 864.0,38.9 872.0,28.0" fill="none" stroke="#2e7d32" stroke-width="2.5"></polyline><polyline points="72.0,511.9 80.0,510.5 88.0,509.1 96.0,507.6 104.0,506.1 112.0,504.6 120.0,503.0 128.0,501.4 136.0,499.8 144.0,498.1 152.0,496.4 160.0,494.7 168.0,492.9 176.0,491.2 184.0,489.3 192.0,487.5 200.0,485.6 208.0,483.6 216.0,481.6 224.0,479.6 232.0,477.5 240.0,475.4 248.0,473.3 256.0,471.1 264.0,468.9 272.0,466.6 280.0,464.3 288.0,461.9 296.0,459.5 304.0,457.0 312.0,454.5 320.0,451.9 328.0,449.3 336.0,446.7 344.0,443.9 352.0,441.2 360.0,438.3 368.0,435.4 376.0,432.5 384.0,429.5 392.0,426.4 400.0,423.3 408.0,420.1 416.0,416.8 424.0,413.5 432.0,410.1 440.0,406.7 448.0,403.1 456.0,399.5 464.0,395.9 472.0,392.1 480.0,388.3 488.0,384.4 496.0,380.5 504.0,376.4 512.0,372.3 520.0,368.1 528.0,363.8 536.0,359.4 544.0,354.9 552.0,350.4 560.0,345.7 568.0,341.0 576.0,336.1 584.0,331.2 592.0,326.1 600.0,321.0 608.0,315.8 616.0,310.4 624.0,305.0 632.0,299.4 640.0,293.7 648.0,287.9 656.0,282.0 664.0,276.0 672.0,269.9 680.0,263.6 688.0,257.2 696.0,250.7 704.0,244.0 712.0,237.3 720.0,230.3 728.0,223.3 736.0,216.1 744.0,208.7 752.0,201.2 760.0,193.6 768.0,185.8 776.0,177.9 784.0,169.7 792.0,161.5 800.0,153.0 808.0,144.4 816.0,135.7 824.0,126.7 832.0,117.6 840.0,108.2 848.0,98.7 856.0,89.0 864.0,79.1 872.0,69.1" fill="none" stroke="#8bc34a" stroke-width="2.5"></polyline><polyline points="72.0,517.6 80.0,516.3 88.0,514.9 96.0,513.6 104.0,512.2 112.0,510.8 120.0,509.4 128.0,507.9 136.0,506.4 144.0,504.9 152.0,503.3 160.0,501.7 168.0,500.1 176.0,498.5 184.0,496.8 192.0,495.1 200.0,493.3 208.0,491.5 216.0,489.7 224.0,487.8 232.0,485.9 240.0,484.0 248.0,482.0 256.0,480.0 264.0,478.0 272.0,475.9 280.0,473.7 288.0,471.5 296.0,469.3 304.0,467.1 312.0,464.7 320.0,462.4 328.0,460.0 336.0,457.5 344.0,455.0 352.0,452.5 360.0,449.9 368.0,447.2 376.0,444.5 384.0,441.7 392.0,438.9 400.0,436.0 408.0,433.1 416.0,430.1 424.0,427.0 432.0,423.9 440.0,420.7 448.0,417.5 456.0,414.2 464.0,410.8 472.0,407.4 480.0,403.9 488.0,400.3 496.0,396.6 504.0,392.9 512.0,389.1 520.0,385.2 528.0,381.3 536.0,377.2 544.0,373.1 552.0,368.9 560.0,364.6 568.0,360.3 576.0,355.8 584.0,351.3 592.0,346.7 600.0,341.9 608.0,337.1 616.0,332.2 624.0,327.2 632.0,322.0 640.0,316.8 648.0,311.5 656.0,306.1 664.0,300.5 672.0,294.9 680.0,289.1 688.0,283.2 696.0,277.2 704.0,271.1 712.0,264.9 720.0,258.5 728.0,252.0 736.0,245.4 744.0,238.6 752.0,231.7 760.0,224.7 768.0,217.5 776.0,210.2 784.0,202.8 792.0,195.2 800.0,187.4 808.0,179.5 816.0,171.4 824.0,163.2 832.0,154.8 840.0,146.2 848.0,137.4 856.0,128.5 864.0,119.4 872.0,110.1" fill="none" stroke="#e6007e" stroke-width="2.5"></polyline><line x1="72" y1="187.13957571499495" x2="872" y2="187.13957571499495" stroke="#c77700" stroke-width="2" stroke-dasharray="6 4"></line><text x="78" y="182.13957571499495" text-anchor="start" font-size="10" font-weight="700" fill="#a35c00">Break-even $126,515</text><line x1="766.6465850383986" y1="187.13957571499495" x2="766.6465850383986" y2="520" stroke="#c77700" stroke-width="1" stroke-dasharray="3 4" stroke-opacity="0.6"></line><circle cx="766.6465850383986" cy="187.13957571499495" r="6" fill="#fff" stroke="#c77700" stroke-width="2.5"></circle><text x="766.6465850383986" y="178.13957571499495" text-anchor="middle" font-size="10" font-weight="700" fill="#a35c00">need ECS 86.8</text><rect x="762" y="179.81002327895717" width="12" height="12" fill="#2e7d32" stroke="#fff" stroke-width="2" transform="rotate(45 768 185.81002327895717)"></rect><text x="776" y="203.81002327895717" text-anchor="start" font-size="10" font-weight="700" fill="#2e7d32">target ECS 87</text><text x="80" y="36" font-size="11" font-weight="700" fill="#1f5fbf">2027 — pay +0%/yr, inflation 3.7%/yr</text><text x="472" y="566" text-anchor="middle" font-size="13" font-weight="700" fill="#1a1a1a">Overall Contribution Score</text><line x1="752" y1="20" x2="752" y2="520" stroke="#1a1a1a" stroke-width="1" stroke-dasharray="3 4" stroke-opacity="0.45"></line><circle cx="752" cy="201.24597465283986" r="6" fill="#111" stroke="#fff" stroke-width="2"></circle></svg>
+    </div>
+
+    <div class="card">
+      <label for="ecs" style="margin-top:0">Your ECS / Overall Contribution Score</label>
+      <div class="ecsrow">
+        <input id="ecs" type="number" min="0" max="100" step="any" placeholder="0 – 100" value="85">
+        <div class="stepper">
+          <button type="button" id="ecsUp" aria-label="increase 1">▲</button>
+          <button type="button" id="ecsDn" aria-label="decrease 1">▼</button>
+        </div>
+      </div>
+      <input id="curRailSlider" class="tslider rails" type="range" min="-8" max="8" step="0.5" value="0" aria-label="Current rail position">
+      <div class="tscale"><span>Lower rail</span><span>SPL</span><span>Upper rail</span></div>
+      <div class="hint" id="curRailRead">Rail position: <b>the SPL</b> → $163,409 gross today at ECS 85.</div>
+
+      <details class="salfold">
+        <summary>Your current base salary (optional)</summary>
+        <input id="salary" type="number" min="0" step="1" placeholder="Base pay, no locality (e.g. 111000)" aria-label="Your current base salary">
+
+      </details>
+
+      <div class="threerow">
+        <div>
+          <label for="year">Year</label>
+          <select id="year"><option value="2026">2026 (current)</option><option value="2027" selected="">2027</option><option value="2028">2028</option><option value="2029">2029</option><option value="2030">2030</option><option value="2031">2031</option><option value="2032">2032</option><option value="2033">2033</option><option value="2034">2034</option><option value="2035">2035</option><option value="2036">2036</option></select>
+        </div>
+        <div>
+          <label for="gsRaise">Pay raise %</label>
+          <input id="gsRaise" type="number" step="0.1" value="0" title="Annual pay-line raise. 0 = frozen; ~1% recent.">
+        </div>
+        <div>
+          <label for="inflRate">Inflation %</label>
+          <input id="inflRate" type="number" step="0.1" value="3.7" title="Annual inflation assumption. CBO projects ~2.3%.">
+        </div>
+      </div>
+
+      <label for="target" id="targetLab">Target ECS in 2027</label>
+      <div class="ecsrow">
+        <input id="target" type="number" min="0" max="100" step="any" placeholder="0 – 100" value="87">
+        <div class="stepper">
+          <button type="button" id="tgtUp" aria-label="increase 1">▲</button>
+          <button type="button" id="tgtDn" aria-label="decrease 1">▼</button>
+        </div>
+      </div>
+      <input id="railSlider" class="tslider" type="range" min="-8" max="8" step="0.5" value="0" aria-label="Target rail position" style="background: linear-gradient(to right,#f7b9da 0%,#f7b9da 47.9052400582635%,#bfe2ac 47.9052400582635%,#bfe2ac 100%);">
+      <div class="tscale"><span>Lower rail</span><span>SPL</span><span>Upper rail</span></div>
+      <div class="hint" id="railRead">Rail position: <b>the SPL</b> → $170,024 gross at ECS 87.</div>
+
+      <div class="out">
+        <div class="box lower"><div class="lab">Lower Rail</div><div class="val" id="o-lower">$112,241</div></div>
+        <div class="box spl"><div class="lab">SPL</div><div class="val" id="o-spl">$122,001</div></div>
+        <div class="box upper"><div class="lab">Upper Rail</div><div class="val" id="o-upper">$131,761</div></div>
+      </div>
+
+      <div class="verdict v-none" id="verdict" style="display:none"></div>
+      <div class="erosion" id="erosion">Shortfall of <b>$6,046</b> in 2027. Break-even: <b class="big">ECS 86.8</b>.</div>
+      <div class="target t-ahead" id="targetOut">✓ <b class="big">$570 ahead</b> of inflation (+0.3% real) vs a $169,455 break-even.</div>
+
+      <details class="salfold locfold">
+        <summary>Locality (cost-of-living adjustment)</summary>
+        <select id="locality" aria-label="Locality"><option value="0" selected="">Washington-Arlington, DC-VA  (+33.94%)</option><option value="1">San Jose-San Francisco-Oakland, CA  (+46.34%)</option><option value="2">New York-Newark, NY-NJ-CT-PA  (+37.95%)</option><option value="3">Los Angeles-Long Beach, CA  (+36.47%)</option><option value="4">San Diego-Chula Vista-Carlsbad, CA  (+33.72%)</option><option value="5">Boston-Worcester-Providence, MA-RI-NH-CT-ME-VT  (+32.58%)</option><option value="6">Seattle-Tacoma, WA  (+31.57%)</option><option value="7">Denver-Aurora, CO  (+30.52%)</option><option value="8">Huntsville-Decatur, AL-TN  (+21.91%)</option><option value="9">Dayton-Springfield-Kettering, OH  (+21.42%)</option><option value="10">Rest of U.S.  (+17.06%)</option></select>
+        <div class="locwrap" id="locwrap"><div class="out" style="margin-top:6px"><div class="box lower"><div class="lab">Lower Rail</div><div class="val">$150,336</div></div><div class="box spl"><div class="lab">SPL</div><div class="val">$163,409</div></div><div class="box upper"><div class="lab">Upper Rail</div><div class="val">$176,481</div></div></div></div>
+      </details>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  // ---- Model constants (from 2026 NPR SPL Table) ----
+  var BASE = 22584;          // GS-1/1 base
+  var SLOPE = 1.0200428;     // per-OCS multiplier
+  var LOWER_F = 0.92, UPPER_F = 1.08;
+
+  // ---- Top localities (2026 locality % from OPM saltbl) ----
+  var LOCALITIES = [
+    {n:"Washington-Arlington, DC-VA",                    p:33.94},
+    {n:"San Jose-San Francisco-Oakland, CA",             p:46.34},
+    {n:"New York-Newark, NY-NJ-CT-PA",                   p:37.95},
+    {n:"Los Angeles-Long Beach, CA",                     p:36.47},
+    {n:"San Diego-Chula Vista-Carlsbad, CA",             p:33.72},
+    {n:"Boston-Worcester-Providence, MA-RI-NH-CT-ME-VT", p:32.58},
+    {n:"Seattle-Tacoma, WA",                             p:31.57},
+    {n:"Denver-Aurora, CO",                              p:30.52},
+    {n:"Huntsville-Decatur, AL-TN",                      p:21.91},
+    {n:"Dayton-Springfield-Kettering, OH",               p:21.42},
+    {n:"Rest of U.S.",                                   p:17.06}
+  ];
+
+  var BANDS = {
+    1:{name:"NH-I",   min:22584,  max:40436},
+    2:{name:"NH-II",  min:34799,  max:82938},
+    3:{name:"NH-III", min:76463,  max:118204},
+    4:{name:"NH-IV",  min:107466, max:164301}
+  };
+
+  function spl(ocs){ return BASE * Math.pow(SLOPE, ocs); }
+  function lower(ocs){ return spl(ocs) * LOWER_F; }
+  function upper(ocs){ return spl(ocs) * UPPER_F; }
+
+  // ---- Erosion model: pay line grows at GS raise %/yr; inflation erodes buying power ----
+  var BASE_YEAR = 2026;
+  function rates(){
+    var gs=parseFloat(document.getElementById("gsRaise").value); if(isNaN(gs)) gs=0;
+    var inf=parseFloat(document.getElementById("inflRate").value); if(isNaN(inf)) inf=0;
+    var y=parseInt(document.getElementById("year").value,10); if(isNaN(y)) y=BASE_YEAR;
+    var n=Math.max(0, y-BASE_YEAR);
+    return { year:y, n:n, gs:gs, inf:inf,
+             payF:Math.pow(1+gs/100, n),    // pay line multiplier (GS raises)
+             infF:Math.pow(1+inf/100, n) }; // buying-power target multiplier (CPI)
+  }
+  // ECS needed to reach a break-even salary on the pay line: spl(o)*payF = spl(cur)*infF
+  function ecsNeeded(cur, payF, infF){ return cur + Math.log(infF/payF)/Math.log(SLOPE); }
+
+  // target rail position: % vs SPL, from -8 (lower rail) to +8 (upper rail)
+  function railPos(id){ var v=parseFloat(document.getElementById(id||"railSlider").value); return isNaN(v)?0:v; }
+  function curRF(){ return 1+railPos("curRailSlider")/100; }   // current pay = SPL x this
+  function railText(v){
+    if(v<=-8) return "the lower rail";
+    if(v>=8)  return "the upper rail";
+    if(v===0) return "the SPL";
+    return (v>0?"SPL +":"SPL ")+v.toFixed(1)+"%";
+  }
+
+  // ---- Chart geometry ----
+  var VW=900, VH=580, mL=72, mR=28, mT=20, mB=60;
+  var pW = VW - mL - mR, pH = VH - mT - mB;
+  var X_MIN=0, X_MAX=100;
+  var Y_MIN=20000, Y_MAX=180000;
+
+  function xPix(ocs){ return mL + (ocs - X_MIN)/(X_MAX - X_MIN) * pW; }
+  function yPix(sal){ return mT + (1 - (sal - Y_MIN)/(Y_MAX - Y_MIN)) * pH; }
+
+  var NS="http://www.w3.org/2000/svg";
+  function el(tag, attrs){ var e=document.createElementNS(NS,tag); for(var k in attrs) e.setAttribute(k, attrs[k]); return e; }
+
+  function fmt(n){ return "$" + Math.round(n).toLocaleString("en-US"); }
+
+  function curvePoints(fn,F){
+    var pts=[];
+    for(var x=X_MIN; x<=X_MAX; x++){ pts.push(xPix(x).toFixed(1)+","+yPix(fn(x)*F).toFixed(1)); }
+    return pts.join(" ");
+  }
+
+  function render(){
+    var R=rates(), F=R.payF;   // pay line scaled by GS raises
+    var ecsRaw0=document.getElementById("ecs").value;
+    var curOk = ecsRaw0!=="" && !isNaN(parseFloat(ecsRaw0));
+    var cur0 = curOk ? Math.max(0,Math.min(100,parseFloat(ecsRaw0))) : 0;
+    var beBase = curOk ? spl(cur0)*curRF()*R.infF : 0;   // break-even salary (base $)
+    Y_MAX = Math.ceil(Math.max(upper(100)*F, beBase, 180000)/20000)*20000;  // fit rails + break-even line
+
+    var svg=document.getElementById("chart");
+    while(svg.firstChild) svg.removeChild(svg.firstChild);
+
+    // plot background
+    svg.appendChild(el("rect",{x:mL,y:mT,width:pW,height:pH,fill:"#ffffff",stroke:"#c7ced6","stroke-width":1}));
+
+    // y gridlines + labels (20k..180k step 20k)
+    for(var sy=Y_MIN; sy<=Y_MAX; sy+=20000){
+      var yy=yPix(sy);
+      svg.appendChild(el("line",{x1:mL,y1:yy,x2:mL+pW,y2:yy,stroke:"#eef1f4","stroke-width":1}));
+      var t=el("text",{x:mL-8,y:yy+4,"text-anchor":"end","font-size":11,fill:"#5a6470"});
+      t.textContent=(sy/1000).toLocaleString("en-US")+",000"; t.textContent="$"+sy.toLocaleString("en-US");
+      svg.appendChild(t);
+    }
+    // x gridlines + labels (0..100 step 10)
+    for(var sx=X_MIN; sx<=X_MAX; sx+=10){
+      var xx=xPix(sx);
+      svg.appendChild(el("line",{x1:xx,y1:mT,x2:xx,y2:mT+pH,stroke:"#eef1f4","stroke-width":1}));
+      var tx=el("text",{x:xx,y:mT+pH+18,"text-anchor":"middle","font-size":11,fill:"#5a6470"});
+      tx.textContent=sx; svg.appendChild(tx);
+    }
+
+    // selected band pay-range shading (scaled to projection year)
+    var band=BANDS[4];   // NH-IV fixed (no band selector in this version)
+    var bMax=band.max*F, bMin=band.min*F;
+    var byTop=yPix(Math.min(bMax,Y_MAX)), byBot=yPix(Math.max(bMin,Y_MIN));
+    svg.appendChild(el("rect",{x:mL,y:byTop,width:pW,height:(byBot-byTop),fill:"#9aa7b4","fill-opacity":.16}));
+    svg.appendChild(el("line",{x1:mL,y1:byTop,x2:mL+pW,y2:byTop,stroke:"#7c8a99","stroke-width":1,"stroke-dasharray":"5 4"}));
+    svg.appendChild(el("line",{x1:mL,y1:byBot,x2:mL+pW,y2:byBot,stroke:"#7c8a99","stroke-width":1,"stroke-dasharray":"5 4"}));
+    var bl1=el("text",{x:mL+6,y:byTop-4,"font-size":10,fill:"#566270"}); bl1.textContent=band.name+" ceiling "+fmt(bMax); svg.appendChild(bl1);
+    var bl2=el("text",{x:mL+6,y:byBot+12,"font-size":10,fill:"#566270"}); bl2.textContent=band.name+" floor "+fmt(bMin); svg.appendChild(bl2);
+
+    // curves
+    svg.appendChild(el("polyline",{points:curvePoints(upper,F),fill:"none",stroke:"#2e7d32","stroke-width":2.5}));
+    svg.appendChild(el("polyline",{points:curvePoints(spl,F),  fill:"none",stroke:"#8bc34a","stroke-width":2.5}));
+    svg.appendChild(el("polyline",{points:curvePoints(lower,F),fill:"none",stroke:"#e6007e","stroke-width":2.5}));
+
+    // ---- erosion overlay: break-even target + ECS-needed marker ----
+    if(curOk && R.n>0){
+      var byv=yPix(Math.max(Y_MIN,Math.min(Y_MAX,beBase)));
+      // break-even horizontal line (amber)
+      svg.appendChild(el("line",{x1:mL,y1:byv,x2:mL+pW,y2:byv,stroke:"#c77700","stroke-width":2,"stroke-dasharray":"6 4"}));
+      var bt=el("text",{x:mL+6,y:byv-5,"text-anchor":"start","font-size":10,"font-weight":700,fill:"#a35c00"});
+      bt.textContent="Break-even "+fmt(beBase); svg.appendChild(bt);
+      // ECS needed to reach break-even on the pay line
+      var need=ecsNeeded(cur0, R.payF, R.infF);
+      if(need<=100){
+        var nx=xPix(need);
+        svg.appendChild(el("line",{x1:nx,y1:byv,x2:nx,y2:mT+pH,stroke:"#c77700","stroke-width":1,"stroke-dasharray":"3 4","stroke-opacity":.6}));
+        svg.appendChild(el("circle",{cx:nx,cy:byv,r:6,fill:"#fff","stroke":"#c77700","stroke-width":2.5}));
+        var nt=el("text",{x:nx,y:byv-9,"text-anchor":"middle","font-size":10,"font-weight":700,fill:"#a35c00"});
+        nt.textContent="need ECS "+need.toFixed(1); svg.appendChild(nt);
+      } else {
+        var ot=el("text",{x:mL+pW-4,y:byv+13,"text-anchor":"end","font-size":10,"font-weight":700,fill:"#b3261e"});
+        ot.textContent="need ECS >100 — can't keep pace"; svg.appendChild(ot);
+      }
+    }
+
+    // ---- target ECS marker (green = ahead of inflation, red = behind) ----
+    var tRaw0=document.getElementById("target").value;
+    if(curOk && tRaw0!=="" && !isNaN(parseFloat(tRaw0))){
+      var t0=Math.max(0,Math.min(100,parseFloat(tRaw0)));
+      var tPayBase=spl(t0)*R.payF*(1+railPos()/100);
+      var tCol = tPayBase>=beBase ? "#2e7d32" : "#c2185b";
+      var tx0=xPix(t0), ty0=yPix(Math.max(Y_MIN,Math.min(Y_MAX,tPayBase)));
+      svg.appendChild(el("rect",{x:tx0-6,y:ty0-6,width:12,height:12,fill:tCol,stroke:"#fff","stroke-width":2,transform:"rotate(45 "+tx0+" "+ty0+")"}));
+      var tRight = tx0 < mL+pW-70;   // label below-right of marker unless near the right edge
+      var tl=el("text",{x:tRight?tx0+8:tx0-8,y:ty0+18,"text-anchor":tRight?"start":"end","font-size":10,"font-weight":700,fill:tCol});
+      tl.textContent="target ECS "+t0; svg.appendChild(tl);
+    }
+
+    // year banner
+    if(R.n>0){
+      var pb=el("text",{x:mL+8,y:mT+16,"font-size":11,"font-weight":700,fill:"#1f5fbf"});
+      pb.textContent=R.year+" — pay +"+R.gs+"%/yr, inflation "+R.inf+"%/yr"; svg.appendChild(pb);
+    }
+
+    // axis title
+    var xt=el("text",{x:mL+pW/2,y:VH-14,"text-anchor":"middle","font-size":13,"font-weight":700,fill:"#1a1a1a"});
+    xt.textContent="Overall Contribution Score"; svg.appendChild(xt);
+
+    // ---- user dot ----
+    var ecsRaw=document.getElementById("ecs").value;
+    var salRaw=document.getElementById("salary").value;
+    if(ecsRaw!=="" && !isNaN(parseFloat(ecsRaw))){
+      var ocs=Math.max(0,Math.min(100,parseFloat(ecsRaw)));
+      var hasSal = salRaw!=="" && !isNaN(parseFloat(salRaw));
+      var dotSal = hasSal ? parseFloat(salRaw) : spl(ocs)*F*curRF();
+      var dx=xPix(ocs), dy=yPix(Math.max(Y_MIN,Math.min(Y_MAX,dotSal)));
+      // guide lines
+      svg.appendChild(el("line",{x1:dx,y1:mT,x2:dx,y2:mT+pH,stroke:"#1a1a1a","stroke-width":1,"stroke-dasharray":"3 4","stroke-opacity":.45}));
+      svg.appendChild(el("circle",{cx:dx,cy:dy,r:6,fill:"#111","stroke":"#fff","stroke-width":2}));
+    }
+  }
+
+  function calc(){
+    var ecsRaw=document.getElementById("ecs").value;
+    var lo=document.getElementById("o-lower"), sp=document.getElementById("o-spl"), up=document.getElementById("o-upper");
+    var verdict=document.getElementById("verdict");
+
+    if(ecsRaw==="" || isNaN(parseFloat(ecsRaw))){
+      lo.innerHTML=sp.innerHTML=up.innerHTML="&mdash;";
+      verdict.style.display="none";
+      document.getElementById("locwrap").innerHTML="";
+      document.getElementById("erosion").className="erosion base";
+      document.getElementById("erosion").innerHTML="<b>Erosion tracker:</b> enter an ECS, then pick a future year to see your break-even score climb.";
+      document.getElementById("curRailRead").innerHTML="Where your pay sits within the rails today.";
+      document.getElementById("targetOut").className="target t-none";
+      document.getElementById("targetOut").innerHTML="Enter your current ECS to compare a target against inflation.";
+      render(); return;
+    }
+    var ocs=Math.max(0,Math.min(100,parseFloat(ecsRaw)));
+    var R=rates(), F=R.payF;
+    var L=lower(ocs)*F, S=spl(ocs)*F, U=upper(ocs)*F;
+    lo.textContent=fmt(L); sp.textContent=fmt(S); up.textContent=fmt(U);
+
+    var capNote="";
+    var salRaw=document.getElementById("salary").value;
+    if(salRaw==="" || isNaN(parseFloat(salRaw))){
+      verdict.style.display="none";   // verdict only shows once a current salary is typed
+    } else {
+      verdict.style.display="";
+      var sal=parseFloat(salRaw);
+      var gap=S-sal;
+      var gapTxt=(gap>=0? "<b>"+fmt(gap)+" below</b> the SPL" : "<b>"+fmt(-gap)+" above</b> the SPL");
+      if(sal < L){
+        verdict.className="verdict v-under";
+        verdict.innerHTML="⚠ <b>Underpaid:</b> "+fmt(sal)+" is below the "+fmt(L)+" lower rail; "+gapTxt+"."+capNote;
+      } else if(sal > U){
+        verdict.className="verdict v-over";
+        verdict.innerHTML="<b>Red-lined:</b> "+fmt(sal)+" is above the "+fmt(U)+" upper rail; "+gapTxt+"."+capNote;
+      } else {
+        verdict.className="verdict v-in";
+        verdict.innerHTML="✓ <b>In range</b> ("+fmt(L)+" – "+fmt(U)+"); "+gapTxt+"."+capNote;
+      }
+    }
+
+    // ---- locality-adjusted (informational) ----
+    var loc=LOCALITIES[parseInt(document.getElementById("locality").value,10)];
+    var f=1+loc.p/100;
+
+    // ---- current rail position (today's pay = SPL at your score x this) ----
+    var rvC=railPos("curRailSlider"), rfC=1+rvC/100, rTxtC=railText(rvC);
+    var todayGross=spl(ocs)*rfC*f;
+    document.getElementById("curRailRead").innerHTML="Rail position: <b>"+rTxtC+"</b> &rarr; "+fmt(todayGross)+" gross today at ECS "+ocs+".";
+
+    // ---- inflation erosion (anchor = your current score + rail position) ----
+    var eros=document.getElementById("erosion");
+    if(R.n<=0){
+      eros.className="erosion base";
+      eros.innerHTML="<b>Erosion tracker:</b> pick a future <b>projection year</b> above to see how inflation ("+R.inf+"%/yr) outruns a "+R.gs+"%/yr pay line and forces your break-even ECS upward.";
+    } else {
+      var payGross = spl(ocs)*rfC*R.payF*f;   // your pay that year at the same score + rail position
+      var beGross  = todayGross*R.infF;       // salary needed to hold today's buying power
+      var gapE     = beGross - payGross;
+      var need     = ecsNeeded(ocs, R.payF, R.infF);   // same rail position, so it cancels out
+      var gapTxt   = gapE>=0 ? "Shortfall of <b>"+fmt(gapE)+"</b>" : "Surplus of <b>"+fmt(-gapE)+"</b>";
+      var beTxt    = need<=100
+        ? "Break-even: <b class='big'>ECS "+need.toFixed(1)+"</b>."
+        : "No score up to 100 breaks even.";
+      eros.className="erosion";
+      eros.innerHTML=gapTxt+" in "+R.year+". "+beTxt;
+    }
+
+    // ---- target ECS vs inflation break-even ----
+    document.getElementById("targetLab").textContent="Target ECS in "+R.year;
+    var tOut=document.getElementById("targetOut");
+    var tRaw=document.getElementById("target").value;
+    if(tRaw==="" || isNaN(parseFloat(tRaw))){
+      tOut.className="target t-none";
+      tOut.innerHTML="Set a target ECS to see how far ahead of or behind inflation you'd be in "+R.year+".";
+    } else {
+      var t=Math.max(0,Math.min(100,parseFloat(tRaw)));
+      var rv=railPos(), rf=1+rv/100;   // position between lower (-8%) and upper (+8%) rail
+      var tPay=spl(t)*R.payF*rf*f;     // gross pay at target score + rail position that year
+      var be=todayGross*R.infF;        // gross needed to hold today's buying power
+      var d=tPay-be, pct=(tPay/be-1)*100;
+      var needT=ecsNeeded(ocs, R.payF*rf, R.infF*rfC);   // break-even score at the target rail position
+      var rTxt=railText(rv);
+      // color slider track at the rail position that exactly breaks even for this target score
+      var beRF=spl(ocs)*rfC*R.infF/(spl(t)*R.payF);
+      var bp=Math.max(0,Math.min(100,(beRF-LOWER_F)/(UPPER_F-LOWER_F)*100));
+      document.getElementById("railSlider").style.background=
+        "linear-gradient(to right,#f7b9da 0%,#f7b9da "+bp+"%,#bfe2ac "+bp+"%,#bfe2ac 100%)";
+      document.getElementById("railRead").innerHTML="Rail position: <b>"+rTxt+"</b> &rarr; "+fmt(tPay)+" gross at ECS "+t+".";
+      // pay at the target is already in the rail readout above, so keep this to the verdict
+      if(d>=0){
+        tOut.className="target t-ahead";
+        tOut.innerHTML="✓ <b class='big'>"+fmt(d)+" ahead</b> of inflation (+"+pct.toFixed(1)+"% real) vs a "+fmt(be)+" break-even.";
+      } else {
+        tOut.className="target t-behind";
+        tOut.innerHTML="⚠ <b class='big'>"+fmt(-d)+" behind</b> inflation ("+pct.toFixed(1)+"% real) vs a "+fmt(be)+" break-even. "+
+          (needT<=100 ? "Need ECS "+needT.toFixed(1)+"+ at this rail position." : "No score up to 100 breaks even here.");
+      }
+    }
+    var locwrap=document.getElementById("locwrap");
+    var here = (salRaw!=="" && !isNaN(parseFloat(salRaw)))
+      ? "<div class='ln'>Your base "+fmt(parseFloat(salRaw))+" &rarr; with locality &asymp; <b>"+fmt(parseFloat(salRaw)*f)+"</b> gross.</div>"
+      : "";
+    locwrap.innerHTML =
+      "<div class='out' style='margin-top:6px'>"+
+        "<div class='box lower'><div class='lab'>Lower Rail</div><div class='val'>"+fmt(L*f)+"</div></div>"+
+        "<div class='box spl'><div class='lab'>SPL</div><div class='val'>"+fmt(S*f)+"</div></div>"+
+        "<div class='box upper'><div class='lab'>Upper Rail</div><div class='val'>"+fmt(U*f)+"</div></div>"+
+      "</div>"+here;
+    render();
+  }
+
+  // populate locality dropdown (DC default = index 0)
+  (function(){
+    var sel=document.getElementById("locality");
+    sel.innerHTML="";   // clear baked-in options before rebuilding
+    LOCALITIES.forEach(function(l,i){
+      var o=document.createElement("option");
+      o.value=i; o.textContent=l.n+"  (+"+l.p.toFixed(2)+"%)";
+      sel.appendChild(o);
+    });
+    sel.value="0";   // Washington-Arlington, DC-VA
+  })();
+
+  // populate projection-year dropdown (2027 default)
+  (function(){
+    var y=document.getElementById("year");
+    y.innerHTML="";   // clear baked-in options before rebuilding
+    for(var yr=BASE_YEAR; yr<=2036; yr++){
+      var o=document.createElement("option");
+      o.value=yr; o.textContent=yr+(yr===BASE_YEAR?" (current)":"");
+      y.appendChild(o);
+    }
+    y.value=String(BASE_YEAR+1);   // default 2027
+  })();
+
+  // external stepper: ±1 score point (native spinner hidden via CSS)
+  function bumpEcs(id,d){
+    var e=document.getElementById(id);
+    var v=parseFloat(e.value); if(isNaN(v)) v=0;
+    v=Math.max(0,Math.min(100, Math.round((v+d)*10)/10));
+    e.value=v; calc();
+  }
+  document.getElementById("ecsUp").addEventListener("click",function(){bumpEcs("ecs",1);});
+  document.getElementById("ecsDn").addEventListener("click",function(){bumpEcs("ecs",-1);});
+  document.getElementById("tgtUp").addEventListener("click",function(){bumpEcs("target",1);});
+  document.getElementById("tgtDn").addEventListener("click",function(){bumpEcs("target",-1);});
+  document.getElementById("railSlider").addEventListener("input", calc);
+
+  // salary and locality folds act as an accordion so the column keeps fitting the screen
+  var folds=[].slice.call(document.querySelectorAll(".salfold"));
+  folds.forEach(function(d){
+    d.addEventListener("toggle",function(){
+      if(d.open) folds.forEach(function(o){ if(o!==d) o.open=false; });
+    });
+  });
+  document.getElementById("curRailSlider").addEventListener("input", calc);
+
+  ["ecs","salary","locality","year","gsRaise","inflRate","target"].forEach(function(id){
+    document.getElementById(id).addEventListener("input", calc);
+    document.getElementById(id).addEventListener("change", calc);
+  });
+  calc();
+})();
+</script>
+
+
+</body></html>
